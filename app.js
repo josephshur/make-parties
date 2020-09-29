@@ -30,12 +30,14 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 const models = require('./db/models');
 
+require('./controllers/events')(app, models);
+
 // INDEX
-app.get('/', (req, res) => {
-  models.Event.findAll().then(events => {
-    res.render('events-index', { events: events });
-  })
-})
+// app.get('/', (req, res) => {
+//   models.Event.findAll().then(events => {
+//     res.render('events-index', { events: events });
+//   })
+// })
 
 // OUR MOCK ARRAY OF PROJECTS
 var events = [
