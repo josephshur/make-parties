@@ -3,6 +3,7 @@ const {allowInsecurePrototypeAccess} = require('@handlebars/allow-prototype-acce
 
 // Initialize express
 const express = require('express')
+const methodOverride = require('method-override')
 const app = express()
 
 // INITIALIZE BODY-PARSER AND ADD IT TO APP
@@ -10,6 +11,9 @@ const bodyParser = require('body-parser');
 
 // require handlebars
 const exphbs = require('express-handlebars');
+
+// override with POST having ?_method=DELETE or ?_method=PUT
+app.use(methodOverride('_method'))
 
 // Use "main" as our default layout
 app.engine('handlebars', exphbs({ defaultLayout: 'main', handlebars: allowInsecurePrototypeAccess(Handlebars) }));
@@ -64,6 +68,38 @@ app.get('/events/:id', (req, res) => {
     // if they id was for an event not in our db, log an error
     console.log(err.message);
   })
+})
+
+// EDIT
+app.get('/events/:id/edit', (req, res) => {
+  models.Event.findByPk(req.params.id).then((event) => {
+    res.render('events-edit', { event: event });
+  }).catch((err) => {
+    console.log(err.message);
+  })
+});
+
+// UPDATE
+app.put('/events/:id', (req, res) => {
+  models.Event.findByPk(req.params.id).then(event => {
+    event.update(req.body).then(event => {
+      res.redirect(`/events/${req.params.id}`);
+    }).catch((err) => {
+      console.log(err);
+    });
+  }).catch((err) => {
+    console.log(err);
+  });
+});
+
+// DELETE
+app.delete('/events/:id', (req, res) => {
+  models.Event.findByPk(req.params.id).then(event => {
+    event.destroy();
+    res.redirect(`/`);
+  }).catch((err) => {
+    console.log(err);
+  });
 })
 
 // Choose a port to listen on
