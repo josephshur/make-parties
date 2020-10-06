@@ -32,6 +32,9 @@ const models = require('./db/models');
 
 require('./controllers/events')(app, models);
 
+require('./controllers/events')(app, models);
+require('./controllers/rsvps')(app, models);
+
 // INDEX
 // app.get('/', (req, res) => {
 //   models.Event.findAll().then(events => {
