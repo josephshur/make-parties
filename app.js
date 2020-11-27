@@ -1,16 +1,21 @@
-const Handlebars = require('handlebars')
-const {allowInsecurePrototypeAccess} = require('@handlebars/allow-prototype-access')
+const Handlebars = require('handlebars');
+const {allowInsecurePrototypeAccess} = require('@handlebars/allow-prototype-access');
 
 // Initialize express
-const express = require('express')
-const methodOverride = require('method-override')
-const app = express()
+const express = require('express');
+const methodOverride = require('method-override');
+const app = express();
 
 // INITIALIZE BODY-PARSER AND ADD IT TO APP
 const bodyParser = require('body-parser');
 
 // require handlebars
 const exphbs = require('express-handlebars');
+const jwtExpress = require('express-jwt');
+const jwt = require('jsonwebtoken');
+
+const models = require('./db/models');
+const cookieParser = require('cookie-parser');
 
 // override with POST having ?_method=DELETE or ?_method=PUT
 app.use(methodOverride('_method'))
@@ -20,92 +25,74 @@ app.engine('handlebars', exphbs({ defaultLayout: 'main', handlebars: allowInsecu
 // Use handlebars to render
 app.set('view engine', 'handlebars');
 
-// Tell our app to send the "hello world" message to our home page
-// app.get('/', (req, res) => {
-//   res.render('home', { msg: 'Handlebars are Cool!' });
-// })
-
 // The following line must appear AFTER const app = express() and before your routes!
 app.use(bodyParser.urlencoded({ extended: true }));
 
-const models = require('./db/models');
+app.use(cookieParser());
 
-require('./controllers/events')(app, models);
+// // OUR MOCK ARRAY OF PROJECTS
+// var events = [
+//   { title: "I am your first event", desc: "A great event that is super fun to look at and good", imgUrl: "https://img.purch.com/w/660/aHR0cDovL3d3dy5saXZlc2NpZW5jZS5jb20vaW1hZ2VzL2kvMDAwLzA4OC85MTEvb3JpZ2luYWwvZ29sZGVuLXJldHJpZXZlci1wdXBweS5qcGVn" },
+//   { title: "I am your second event", desc: "A great event that is super fun to look at and good", imgUrl: "https://img.purch.com/w/660/aHR0cDovL3d3dy5saXZlc2NpZW5jZS5jb20vaW1hZ2VzL2kvMDAwLzA4OC85MTEvb3JpZ2luYWwvZ29sZGVuLXJldHJpZXZlci1wdXBweS5qcGVn" },
+//   { title: "I am your third event", desc: "A great event that is super fun to look at and good", imgUrl: "https://img.purch.com/w/660/aHR0cDovL3d3dy5saXZlc2NpZW5jZS5jb20vaW1hZ2VzL2kvMDAwLzA4OC85MTEvb3JpZ2luYWwvZ29sZGVuLXJldHJpZXZlci1wdXBweS5qcGVn" }
+// ]
 
+// app.use(function (req, res, next) {
+//   jwtExpress({
+//     secret: "AUTH-SECRET",
+//     algorithms: ['HS256'],
+//     credentialsRequired: true,
+//     getToken: function fromHeaderOrQuerystring (req) {
+//       if (req.cookies.mpJWT) {
+//         return req.cookies.mpJWT;
+//       }
+//       return null;
+//     }
+//   }).unless({ path: ['/login', '/sign-up'] })
+//   next();
+// });
+
+app.use(function authenticateToken(req, res, next) {
+  // Gather the jwt access token from the request header
+  // const authHeader = req.headers['authorization']
+  // const token = authHeader && authHeader.split(' ')[1]
+  const token = req.cookies.mpJWT;
+  // if (token == null) return res.sendStatus(401) // if there isn't any token
+
+  if (token) {
+    jwt.verify(token, "AUTH-SECRET", (err, user) => {
+      console.log(err)
+      if (err) res.redirect('/');
+      req.user = user
+      next() // pass the execution off to whatever request the client intended
+    })
+  } else {
+    next()
+  }
+});
+
+app.use(function (req, res, next) {
+  console.log("lookingUpUser:", req.user);
+  // if a valid JWT token is present
+  if (req.user) {
+    // Look up the user's record
+    console.log("Req.User:", req.user);
+    models.User.findByPk(req.user.id).then(currentUser => {
+      console.log("currentUser:", currentUser);
+      // make the user object available in all controllers and templates
+      res.locals.currentUser = currentUser;
+      next();
+    }).catch(err => {
+      console.log(err);
+    })
+  } else {
+    next();
+  }
+});
+
+require('./controllers/auth')(app, models);
 require('./controllers/events')(app, models);
 require('./controllers/rsvps')(app, models);
-
-// INDEX
-// app.get('/', (req, res) => {
-//   models.Event.findAll().then(events => {
-//     res.render('events-index', { events: events });
-//   })
-// })
-
-// OUR MOCK ARRAY OF PROJECTS
-var events = [
-  { title: "I am your first event", desc: "A great event that is super fun to look at and good", imgUrl: "https://img.purch.com/w/660/aHR0cDovL3d3dy5saXZlc2NpZW5jZS5jb20vaW1hZ2VzL2kvMDAwLzA4OC85MTEvb3JpZ2luYWwvZ29sZGVuLXJldHJpZXZlci1wdXBweS5qcGVn" },
-  { title: "I am your second event", desc: "A great event that is super fun to look at and good", imgUrl: "https://img.purch.com/w/660/aHR0cDovL3d3dy5saXZlc2NpZW5jZS5jb20vaW1hZ2VzL2kvMDAwLzA4OC85MTEvb3JpZ2luYWwvZ29sZGVuLXJldHJpZXZlci1wdXBweS5qcGVn" },
-  { title: "I am your third event", desc: "A great event that is super fun to look at and good", imgUrl: "https://img.purch.com/w/660/aHR0cDovL3d3dy5saXZlc2NpZW5jZS5jb20vaW1hZ2VzL2kvMDAwLzA4OC85MTEvb3JpZ2luYWwvZ29sZGVuLXJldHJpZXZlci1wdXBweS5qcGVn" }
-]
-
-// NEW
-// app.get('/events/new', (req, res) => {
-//   res.render('events-new', {});
-// })
-
-// CREATE
-// app.post('/events', (req, res) => {
-//   models.Event.create(req.body).then(event => {
-//     res.redirect(`/events/${event.id}`);
-//   }).catch((err) => {
-//     console.log(err)
-//   });
-// })
-
-// SHOW
-// app.get('/events/:id', (req, res) => {
-//   // Search for the event by its id that was passed in via req.params
-//   models.Event.findByPk(req.params.id).then((event) => {
-//     // If the id is for a valid event, show it
-//     res.render('events-show', { event: event })
-//   }).catch((err) => {
-//     // if they id was for an event not in our db, log an error
-//     console.log(err.message);
-//   })
-// })
-
-// EDIT
-// app.get('/events/:id/edit', (req, res) => {
-//   models.Event.findByPk(req.params.id).then((event) => {
-//     res.render('events-edit', { event: event });
-//   }).catch((err) => {
-//     console.log(err.message);
-//   })
-// });
-
-// UPDATE
-// app.put('/events/:id', (req, res) => {
-//   models.Event.findByPk(req.params.id).then(event => {
-//     event.update(req.body).then(event => {
-//       res.redirect(`/events/${req.params.id}`);
-//     }).catch((err) => {
-//       console.log(err);
-//     });
-//   }).catch((err) => {
-//     console.log(err);
-//   });
-// });
-
-// DELETE
-// app.delete('/events/:id', (req, res) => {
-//   models.Event.findByPk(req.params.id).then(event => {
-//     event.destroy();
-//     res.redirect(`/`);
-//   }).catch((err) => {
-//     console.log(err);
-//   });
-// })
 
 // Choose a port to listen on
 const port = process.env.PORT || 3000;

@@ -4,6 +4,7 @@ module.exports = function (app, models) {
 
     // INDEX
     app.get('/', (req, res) => {
+        console.log("req.cookies:", req.cookies);
         models.Event.findAll({ order: [['createdAt', 'DESC']] }).then(events => {
             res.render('events-index', { events: events });
         })
@@ -17,6 +18,7 @@ module.exports = function (app, models) {
     // CREATE
     app.post('/events', (req, res) => {
       models.Event.create(req.body).then(event => {
+        event.UserId = req.user.id;
         res.redirect(`/events/${event.id}`);
       }).catch((err) => {
         console.log(err)
